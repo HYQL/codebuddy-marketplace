@@ -50,6 +50,7 @@ python scripts/agnes_image.py "提示词" [选项]
 - `--image <URL或本地文件>` 可重复；图生图/多图合成时必填。本地文件会自动转成 Data URI（Base64）；也可传公共 HTTPS URL。最多传 5 张（前 3 张免费）
 - `--b64` 以 Base64 形式取图并直接落盘；默认取 URL 后下载
 - `--out 文件路径` 输出路径（默认 `agnes_out/image_<时间戳>.png`）
+- `--model 模型名`（默认 `agnes-image-2.5-flash`；官方发布 3.0 后可直接传新模型名，无需改脚本）
 
 示例：
 
@@ -71,6 +72,7 @@ python scripts/agnes_video.py "提示词" [选项]
 - `--first-frame URL` / `--last-frame URL`：keyframe 模式，至少传一个；两个 URL 必须可公开访问
 - `--images URL`（可重复，最多 5 张）/ `--audios URL`（可重复，最多 3 段）：reference 模式，prompt 中用 `<Picture N>`、`<Audio N>` 指代素材；videos 参考不支持
 - `--out 文件路径`（默认 `agnes_out/video_<时间戳>.mp4`）；`--poll-interval`（默认 10s，免费额度查询频繁会 429，勿调小）；`--timeout`（默认 600s）
+- `--model 模型名`（默认 `agnes-video-2.5-flash`；官方发布 3.0 后可直接传新模型名，轮询 `model_name` 会自动跟随；无需改脚本）
 
 示例：
 

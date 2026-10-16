@@ -121,6 +121,8 @@ def main() -> None:
                     help="输入图：公共 HTTPS URL 或本地文件路径（自动转 Data URI），可重复（图生图/多图合成）")
     ap.add_argument("--b64", action="store_true", help="以 b64_json 取图并直接落盘")
     ap.add_argument("--out", default=None, help="输出文件路径（默认 agnes_out/image_<ts>.png）")
+    ap.add_argument("--model", default=MODEL,
+                    help=f"模型名（默认 {MODEL}；如升级到 3.0 可传 agnes-image-3.0-flash，视官方发布为准）")
     ap.add_argument("--api-key", default=None, help="Agnes API Key（默认取环境变量 AGNES_API_KEY）")
     ap.add_argument("--node", choices=sorted(BASE_URLS), default="cn",
                     help="API 节点：cn=api.agnes-ai.cn（默认，国内）com=api.agnes-ai.com（国外）；"
@@ -135,7 +137,7 @@ def main() -> None:
         extra_body["image"] = [to_image_ref(r) for r in args.image]
 
     payload = {
-        "model": MODEL,
+        "model": args.model,
         "prompt": args.prompt,
         "size": args.size,
         "extra_body": extra_body,
@@ -143,7 +145,7 @@ def main() -> None:
     if args.ratio:
         payload["ratio"] = args.ratio
 
-    print(f"[agnes-image] model={MODEL} base={base} size={args.size} ratio={args.ratio or '1:1'} "
+    print(f"[agnes-image] model={args.model} base={base} size={args.size} ratio={args.ratio or '1:1'} "
           f"输入图 {len(args.image)} 张 …")
     t0 = time.time()
     resp = http_json(f"{base}/images/generations", api_key, payload, args.timeout)

@@ -48,7 +48,7 @@ def http_json(url: str, api_key: str, payload: dict | None, timeout: int,
 
 def build_payload(args) -> dict:
     payload: dict = {
-        "model": MODEL,
+        "model": args.model,
         "prompt": args.prompt,
         "mode": args.mode,
         "seconds": str(args.seconds),
@@ -83,9 +83,10 @@ def build_payload(args) -> dict:
     return payload
 
 
-def poll(video_id: str, mode: str, api_key: str, host: str, interval: float, timeout: int) -> dict:
-    # keyframe/reference 模式查询必须带 model_name；text 模式裸 video_id 也可
-    params = {"video_id": video_id, "model_name": MODEL} if mode != "text" else {"video_id": video_id}
+def poll(video_id: str, mode: str, api_key: str, host: str, model: str,
+         interval: float, timeout: int) -> dict:
+    # keyframe/reference 模式查询必须带 model_name（需与创建任务所用模型一致）；text 模式裸 video_id 也可
+    params = {"video_id": video_id, "model_name": model} if mode != "text" else {"video_id": video_id}
     url = f"{host}/agnesapi?{urllib.parse.urlencode(params)}"
     deadline = time.time() + timeout
     last_status = ""
@@ -173,6 +174,8 @@ def main() -> None:
     ap.add_argument("--out", default=None, help="输出文件路径（默认 agnes_out/video_<ts>.mp4）")
     ap.add_argument("--poll-interval", type=float, default=10.0, help="轮询间隔秒（默认 10，免费额度查询频繁会 429）")
     ap.add_argument("--timeout", type=int, default=600, help="总轮询超时秒（默认 600）")
+    ap.add_argument("--model", default=MODEL,
+                    help=f"模型名（默认 {MODEL}；如升级到 3.0 可传 agnes-video-3.0-flash，视官方发布为准）")
     ap.add_argument("--api-key", default=None, help="Agnes API Key（默认取环境变量 AGNES_API_KEY）")
     ap.add_argument("--node", choices=sorted(AGNES_HOSTS), default="cn",
                     help="API 节点：cn=api.agnes-ai.cn（默认，国内）com=api.agnes-ai.com（国外）；"
@@ -184,7 +187,7 @@ def main() -> None:
     api_key, host = resolve_credentials(args.api_key, args.node)
 
     payload = build_payload(args)
-    print(f"[agnes-video] 创建任务 host={host} mode={args.mode} seconds={args.seconds} "
+    print(f"[agnes-video] 创建任务 model={args.model} host={host} mode={args.mode} seconds={args.seconds} "
           f"aspect_ratio={args.aspect_ratio} …")
     resp = http_json(f"{host}/v1/videos", api_key, payload, timeout=60)
 
@@ -193,7 +196,7 @@ def main() -> None:
         sys.exit(f"创建任务响应缺少 video_id: {json.dumps(resp, ensure_ascii=False)[:500]}")
     print(f"[agnes-video] 任务已创建 video_id={video_id}")
 
-    done = poll(video_id, args.mode, api_key, host, args.poll_interval, args.timeout)
+    done = poll(video_id, args.mode, api_key, host, args.model, args.poll_interval, args.timeout)
     url = done.get("url")
     if not url:
         sys.exit(f"completed 状态但缺少 url: {json.dumps(done, ensure_ascii=False)[:500]}")
