@@ -201,6 +201,7 @@ def main() -> None:
     out = Path(args.out) if args.out else Path("agnes_out") / f"video_{int(time.time())}.mp4"
     download(url, out, api_key, timeout=300)
     print(f"[agnes-video] 完成，已保存: {out.resolve()}")
+    print(f"[agnes-video] 远程地址: {url}")
 
 
 if __name__ == "__main__":

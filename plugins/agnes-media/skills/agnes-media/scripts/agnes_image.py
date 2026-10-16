@@ -159,6 +159,10 @@ def main() -> None:
         sys.exit(f"响应缺少 url/b64_json: {json.dumps(resp, ensure_ascii=False)[:500]}")
 
     print(f"[agnes-image] 完成（{time.time() - t0:.1f}s），已保存: {out.resolve()}")
+    if item.get("url"):
+        print(f"[agnes-image] 远程地址: {item['url']}")
+    else:
+        print("[agnes-image] 远程地址: （b64 模式无远程 URL，图片已直接落盘）")
     print(f"[agnes-image] 提示词修正: {item.get('revised_prompt') or '（无）'}")
 
 

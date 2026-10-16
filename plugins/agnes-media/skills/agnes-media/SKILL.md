@@ -88,6 +88,7 @@ python scripts/agnes_video.py "以 <Picture 1> 的角色在花田奔跑" --mode 
 - 视频 Flash 模型 `size` 只能传 `"720P"`（字符串），传其他值返回 HTTP 400；`n` 只能为 1
 - 模式字段互斥：text 不带媒体；keyframe 不带 images/audios/videos；reference 不带 first_frame/last_frame/videos
 - 图像为同步调用（耗时数秒到数十秒，脚本超时默认 300s）；视频为异步任务，完成前反复轮询，勿重复创建任务
+- 成功后脚本会额外打印**远程地址**（`[agnes-image] 远程地址: <url>` / `[agnes-video] 远程地址: <url>`，Agnes CDN 媒体链接）；该远程地址有有效期，交付用户时优先给本地文件，远程链接仅作补充（b64 模式无远程 URL）
 - 免费额度下视频查询接口有频率限制（429"查询过于频繁"），轮询间隔默认 10s，勿调小到 2s；若轮询中断，用已有 `video_id` 继续查询，不要重新建任务
 - 校验失败（400）不产生费用；鉴权失败（401/403）检查 Key 与账户余额
 

@@ -10,7 +10,7 @@
       "name": "agnes-media",
       "source": "./plugins/agnes-media",
       "description": "Agnes AI 图像与视频生成（agnes-image-2.5-flash / agnes-video-2.5-flash），支持国内（api.agnes-ai.cn）/国外（api.agnes-ai.com）双节点，含零依赖 Python 脚本，API Key 可自动读取 CodeBuddy models.json",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "license": "MIT",
       "keywords": [
         "agnes",

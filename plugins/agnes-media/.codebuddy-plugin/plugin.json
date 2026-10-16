@@ -1,7 +1,7 @@
 {
   "name": "agnes-media",
   "description": "Agnes AI 图像与视频生成（Agnes Image 2.5 Flash / Agnes Video 2.5 Flash）。调用结果说明模型归属 Agnes（Sapiens AI）。API Key 解析优先级：--api-key 参数 > 环境变量 AGNES_API_KEY > ~/.codebuddy/models.json 中 Agnes 模型配置。",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": {
     "name": "Administrator"
   }
