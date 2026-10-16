@@ -5,7 +5,8 @@
   python agnes_image.py "提示词" --size 2K --ratio 16:9 --out city.png
   python agnes_image.py "把主体换成橙色" --image ./in.png --b64
 
-API Key 读取顺序：--api-key 参数 > 环境变量 AGNES_API_KEY。
+API Key 读取顺序：--api-key 参数 > 环境变量 AGNES_API_KEY > ~/.codebuddy/models.json 中 Agnes 模型。
+节点：国内 https://api.agnes-ai.cn（默认）与国外 https://api.agnes-ai.com，用 --node com 或环境变量 AGNES_BASE_URL 切换。
 """
 import argparse
 import base64
@@ -18,7 +19,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-BASE_URL = "https://api.agnes-ai.cn/v1"
+BASE_URLS = {
+    "cn": "https://api.agnes-ai.cn/v1",
+    "com": "https://api.agnes-ai.com/v1",
+}
+AGNES_URL_PREFIXES = ("https://api.agnes-ai.cn", "https://api.agnes-ai.com")
 MODEL = "agnes-image-2.5-flash"
 MIME_BY_EXT = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
                ".webp": "image/webp", ".gif": "image/gif", ".bmp": "image/bmp"}
@@ -58,34 +63,52 @@ def download(url: str, out: Path, api_key: str, timeout: int) -> None:
         f.write(resp.read())
 
 
-def key_from_models_json() -> str | None:
-    """回退：从 CodeBuddy 自定义模型配置中查找 Agnes 模型的 apiKey。"""
+def key_from_models_json() -> tuple[str, str] | None:
+    """回退：从 CodeBuddy 自定义模型配置中查找 Agnes 模型（cn/com 节点）的 apiKey 与 Base URL。"""
     candidate = Path.home() / ".codebuddy" / "models.json"
     if not candidate.is_file():
         return None
     try:
         models = json.loads(candidate.read_text(encoding="utf-8")).get("models", [])
         for m in models:
-            if m.get("url", "").startswith("https://api.agnes-ai.cn") and m.get("apiKey"):
-                return m["apiKey"]
+            url = m.get("url", "")
+            if url.startswith(AGNES_URL_PREFIXES) and m.get("apiKey"):
+                base = url if url.endswith("/v1") else url + "/v1"
+                return m["apiKey"], base
     except Exception:
         return None
     return None
 
 
-def resolve_api_key(cli_key: str | None) -> str:
-    """优先级：--api-key > 环境变量 AGNES_API_KEY > ~/.codebuddy/models.json 中的 Agnes 模型。"""
+def resolve_credentials(cli_key: str | None, node: str) -> tuple[str, str]:
+    """返回 (api_key, base_url)。
+
+    Key 优先级：--api-key > 环境变量 AGNES_API_KEY > ~/.codebuddy/models.json 中 Agnes 模型。
+    Base URL 优先级：环境变量 AGNES_BASE_URL > models.json 条目自带 url > 节点默认值。
+    """
+    base = os.environ.get("AGNES_BASE_URL", "").rstrip("/") or BASE_URLS[node]
+    if not base.endswith("/v1"):
+        base += "/v1"
     if cli_key:
-        return cli_key
+        return cli_key, base
     env_key = os.environ.get("AGNES_API_KEY")
     if env_key:
-        return env_key
-    from_file = key_from_models_json()
-    if from_file:
+        return env_key, base
+    found = key_from_models_json()
+    if found:
+        key, file_base = found
         print("[agnes] 未设置 AGNES_API_KEY，已自动使用 ~/.codebuddy/models.json 中 Agnes 模型的 API Key")
-        return from_file
+        # 显式设置 AGNES_BASE_URL 时以它为准；否则若条目与所选节点一致则跟随条目 host，
+        # 不一致（条目为另一节点）则用所选节点默认 Base，避免 Key 与节点不配对
+        if os.environ.get("AGNES_BASE_URL"):
+            return key, base
+        entry_host = file_base.split("/v1", 1)[0]
+        if entry_host != BASE_URLS[node]:
+            return key, base
+        return key, file_base
     sys.exit("缺少 API Key：请设置环境变量 AGNES_API_KEY、使用 --api-key，"
-             "或在 ~/.codebuddy/models.json 配置 url 为 https://api.agnes-ai.cn/v1 的模型")
+             "或在 ~/.codebuddy/models.json 配置 url 为 https://api.agnes-ai.cn/v1 "
+             "或 https://api.agnes-ai.com/v1 的模型")
 
 
 def main() -> None:
@@ -99,10 +122,13 @@ def main() -> None:
     ap.add_argument("--b64", action="store_true", help="以 b64_json 取图并直接落盘")
     ap.add_argument("--out", default=None, help="输出文件路径（默认 agnes_out/image_<ts>.png）")
     ap.add_argument("--api-key", default=None, help="Agnes API Key（默认取环境变量 AGNES_API_KEY）")
+    ap.add_argument("--node", choices=sorted(BASE_URLS), default="cn",
+                    help="API 节点：cn=api.agnes-ai.cn（默认，国内）com=api.agnes-ai.com（国外）；"
+                         "亦可用环境变量 AGNES_BASE_URL 直接指定 Base URL")
     ap.add_argument("--timeout", type=int, default=300, help="HTTP 超时秒数（默认 300）")
     args = ap.parse_args()
 
-    api_key = resolve_api_key(args.api_key)
+    api_key, base = resolve_credentials(args.api_key, args.node)
 
     extra_body: dict = {"response_format": "b64_json" if args.b64 else "url"}
     if args.image:
@@ -117,10 +143,10 @@ def main() -> None:
     if args.ratio:
         payload["ratio"] = args.ratio
 
-    print(f"[agnes-image] model={MODEL} size={args.size} ratio={args.ratio or '1:1'} "
+    print(f"[agnes-image] model={MODEL} base={base} size={args.size} ratio={args.ratio or '1:1'} "
           f"输入图 {len(args.image)} 张 …")
     t0 = time.time()
-    resp = http_json(f"{BASE_URL}/images/generations", api_key, payload, args.timeout)
+    resp = http_json(f"{base}/images/generations", api_key, payload, args.timeout)
     item = (resp.get("data") or [{}])[0]
     out = Path(args.out) if args.out else Path("agnes_out") / f"image_{int(time.time())}.png"
 

@@ -6,9 +6,11 @@
 
 | 插件 | 版本 | 说明 |
 |---|---|---|
-| `agnes-media` | 1.0.0 | Agnes AI 图像与视频生成技能（详见下文） |
+| `agnes-media` | 1.1.0 | Agnes AI 图像与视频生成技能，支持国内/国外双节点（详见下文） |
 
 ## 安装插件
+
+### 方式 1：CodeBuddy Code CLI 插件市场安装（推荐，可自动更新）
 
 先添加市场，再安装插件：
 
@@ -21,7 +23,22 @@
 - 安装后技能以命名空间加载：`/agnes-media:agnes-media`
 - 也可在 CodeBuddy Code 中运行 `/plugin`，进入「发现」标签页交互式安装（默认用户作用域，支持项目/本地作用域）
 
-常用管理命令：
+### 方式 2：手动拷贝到技能目录（IDE / 无 CLI 用户）
+
+```powershell
+git clone https://github.com/HYQL/codebuddy-marketplace
+Copy-Item -Recurse codebuddy-marketplace\plugins\agnes-media\skills\agnes-media $env:USERPROFILE\.codebuddy\skills\
+```
+
+重启 CodeBuddy 后技能自动可用。项目级共享则拷到项目根目录 `.codebuddy\skills\` 随仓库提交。
+
+### 安装前提（任一方式都需）
+
+1. **Python 3.10+**（脚本仅标准库）
+2. **Agnes API Key**：在 <https://platform.agnes-ai.cn>（国内）创建，配置方式见下文「API Key 配置」
+
+### 常用管理命令
+
 
 ```
 /plugin marketplace list            # 列出已配置市场
@@ -32,7 +49,7 @@
 
 ## agnes-media 技能说明
 
-调用 [Agnes AI](https://platform.agnes-ai.cn) 官方模型生成媒体内容（模型归属 Agnes，Sapiens AI 旗下，国内节点 `api.agnes-ai.cn`）：
+调用 [Agnes AI](https://platform.agnes-ai.cn) 官方模型生成媒体内容（模型归属 Agnes，Sapiens AI 旗下）：
 
 | 能力 | 模型（请求 `model` 字段） | 说明 |
 |---|---|---|
@@ -41,13 +58,22 @@
 
 包含零依赖 Python 脚本（仅标准库，需 Python 3.10+）与完整 API 参考文档。
 
+### API 节点（国内 / 国外）
+
+| 节点 | 服务 host | 切换方式 |
+|---|---|---|
+| `cn`（默认） | `https://api.agnes-ai.cn` | 默认值，无需指定 |
+| `com` | `https://api.agnes-ai.com` | 脚本传 `--node com`；或设环境变量 `AGNES_BASE_URL`（如 `https://api.agnes-ai.com`，带/不带 `/v1` 均可） |
+
+走 `models.json` 回退取 Key 时，节点自动按该条目 url 的 host 配对，避免跨节点鉴权失败。
+
 ### API Key 配置
 
 脚本按以下优先级自动解析 Key，通常无需手动配置：
 
 1. `--api-key` 参数
 2. 环境变量 `AGNES_API_KEY`
-3. `~/.codebuddy/models.json` 中 `url` 以 `https://api.agnes-ai.cn` 开头的自定义模型的 `apiKey`
+3. `~/.codebuddy/models.json` 中 `url` 以 `https://api.agnes-ai.cn` 或 `https://api.agnes-ai.com` 开头的自定义模型的 `apiKey`
 
 三者都缺失时，请到 <https://platform.agnes-ai.cn> 控制台创建 Key 并设置：
 

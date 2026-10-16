@@ -8,7 +8,8 @@
   python agnes_video.py "以 <Picture 1> 的角色在花田奔跑" --mode reference \
       --images https://example.com/char.png
 
-API Key 读取顺序：--api-key 参数 > 环境变量 AGNES_API_KEY。
+API Key 读取顺序：--api-key 参数 > 环境变量 AGNES_API_KEY > ~/.codebuddy/models.json 中 Agnes 模型。
+节点：国内 https://api.agnes-ai.cn（默认）与国外 https://api.agnes-ai.com，用 --node com 或环境变量 AGNES_BASE_URL 切换。
 媒体 URL（首尾帧/参考图/参考音频）必须可被 Agnes 服务公开访问，且任务完成前保持有效。
 """
 import argparse
@@ -21,8 +22,11 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-CREATE_URL = "https://api.agnes-ai.cn/v1/videos"
-QUERY_URL = "https://api.agnes-ai.cn/agnesapi"
+AGNES_HOSTS = {
+    "cn": "https://api.agnes-ai.cn",
+    "com": "https://api.agnes-ai.com",
+}
+AGNES_URL_PREFIXES = ("https://api.agnes-ai.cn", "https://api.agnes-ai.com")
 MODEL = "agnes-video-2.5-flash"
 POLL_STATUSES_DONE = {"completed", "failed"}
 
@@ -79,10 +83,10 @@ def build_payload(args) -> dict:
     return payload
 
 
-def poll(video_id: str, mode: str, api_key: str, interval: float, timeout: int) -> dict:
+def poll(video_id: str, mode: str, api_key: str, host: str, interval: float, timeout: int) -> dict:
     # keyframe/reference 模式查询必须带 model_name；text 模式裸 video_id 也可
     params = {"video_id": video_id, "model_name": MODEL} if mode != "text" else {"video_id": video_id}
-    url = f"{QUERY_URL}?{urllib.parse.urlencode(params)}"
+    url = f"{host}/agnesapi?{urllib.parse.urlencode(params)}"
     deadline = time.time() + timeout
     last_status = ""
     while time.time() < deadline:
@@ -107,34 +111,51 @@ def download(url: str, out: Path, api_key: str, timeout: int) -> None:
         f.write(resp.read())
 
 
-def key_from_models_json() -> str | None:
-    """回退：从 CodeBuddy 自定义模型配置中查找 Agnes 模型的 apiKey。"""
+def key_from_models_json() -> tuple[str, str] | None:
+    """回退：从 CodeBuddy 自定义模型配置中查找 Agnes 模型（cn/com 节点）的 apiKey 与服务 host。"""
     candidate = Path.home() / ".codebuddy" / "models.json"
     if not candidate.is_file():
         return None
     try:
         models = json.loads(candidate.read_text(encoding="utf-8")).get("models", [])
         for m in models:
-            if m.get("url", "").startswith("https://api.agnes-ai.cn") and m.get("apiKey"):
-                return m["apiKey"]
+            url = m.get("url", "")
+            if url.startswith(AGNES_URL_PREFIXES) and m.get("apiKey"):
+                u = urllib.parse.urlparse(url.rstrip("/"))
+                host = f"{u.scheme}://{u.netloc}"
+                return m["apiKey"], host
     except Exception:
         return None
     return None
 
 
-def resolve_api_key(cli_key: str | None) -> str:
-    """优先级：--api-key > 环境变量 AGNES_API_KEY > ~/.codebuddy/models.json 中的 Agnes 模型。"""
+def resolve_credentials(cli_key: str | None, node: str) -> tuple[str, str]:
+    """返回 (api_key, host)。
+
+    Key 优先级：--api-key > 环境变量 AGNES_API_KEY > ~/.codebuddy/models.json 中 Agnes 模型。
+    host 优先级：环境变量 AGNES_BASE_URL > models.json 条目自带 url > 节点默认值（AGNES_HOSTS）。
+    """
+    env_base = os.environ.get("AGNES_BASE_URL", "").rstrip("/")
+    host = env_base[:-4] if env_base.endswith("/v1") else env_base or AGNES_HOSTS[node]
     if cli_key:
-        return cli_key
+        return cli_key, host
     env_key = os.environ.get("AGNES_API_KEY")
     if env_key:
-        return env_key
-    from_file = key_from_models_json()
-    if from_file:
+        return env_key, host
+    found = key_from_models_json()
+    if found:
+        key, file_host = found
         print("[agnes] 未设置 AGNES_API_KEY，已自动使用 ~/.codebuddy/models.json 中 Agnes 模型的 API Key")
-        return from_file
+        # 显式设置 AGNES_BASE_URL 时以它为准；否则若条目与所选节点一致则跟随条目 host，
+        # 不一致（条目为另一节点）则用所选节点默认 host，避免 Key 与节点不配对
+        if os.environ.get("AGNES_BASE_URL"):
+            return key, host
+        if file_host != AGNES_HOSTS[node]:
+            return key, host
+        return key, file_host
     sys.exit("缺少 API Key：请设置环境变量 AGNES_API_KEY、使用 --api-key，"
-             "或在 ~/.codebuddy/models.json 配置 url 为 https://api.agnes-ai.cn/v1 的模型")
+             "或在 ~/.codebuddy/models.json 配置 url 为 https://api.agnes-ai.cn/v1 "
+             "或 https://api.agnes-ai.com/v1 的模型")
 
 
 def main() -> None:
@@ -153,23 +174,26 @@ def main() -> None:
     ap.add_argument("--poll-interval", type=float, default=10.0, help="轮询间隔秒（默认 10，免费额度查询频繁会 429）")
     ap.add_argument("--timeout", type=int, default=600, help="总轮询超时秒（默认 600）")
     ap.add_argument("--api-key", default=None, help="Agnes API Key（默认取环境变量 AGNES_API_KEY）")
+    ap.add_argument("--node", choices=sorted(AGNES_HOSTS), default="cn",
+                    help="API 节点：cn=api.agnes-ai.cn（默认，国内）com=api.agnes-ai.com（国外）；"
+                         "亦可用环境变量 AGNES_BASE_URL 直接指定 Base URL")
     args = ap.parse_args()
 
     if not 4 <= args.seconds <= 12:
         sys.exit("seconds 必须为 4~12")
-    api_key = resolve_api_key(args.api_key)
+    api_key, host = resolve_credentials(args.api_key, args.node)
 
     payload = build_payload(args)
-    print(f"[agnes-video] 创建任务 mode={args.mode} seconds={args.seconds} "
+    print(f"[agnes-video] 创建任务 host={host} mode={args.mode} seconds={args.seconds} "
           f"aspect_ratio={args.aspect_ratio} …")
-    resp = http_json(CREATE_URL, api_key, payload, timeout=60)
+    resp = http_json(f"{host}/v1/videos", api_key, payload, timeout=60)
 
     video_id = resp.get("video_id") or resp.get("task_id") or resp.get("id")
     if not video_id:
         sys.exit(f"创建任务响应缺少 video_id: {json.dumps(resp, ensure_ascii=False)[:500]}")
     print(f"[agnes-video] 任务已创建 video_id={video_id}")
 
-    done = poll(video_id, args.mode, api_key, args.poll_interval, args.timeout)
+    done = poll(video_id, args.mode, api_key, host, args.poll_interval, args.timeout)
     url = done.get("url")
     if not url:
         sys.exit(f"completed 状态但缺少 url: {json.dumps(done, ensure_ascii=False)[:500]}")

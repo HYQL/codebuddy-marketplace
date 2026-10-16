@@ -5,9 +5,14 @@ description: Agnes AI 图像与视频生成。调用 Agnes 官方模型 Agnes Im
 
 # Agnes Media（图像 + 视频生成）
 
-Agnes AI 官方 API（https://platform.agnes-ai.cn 获取 Key，Base URL `https://api.agnes-ai.cn/v1`，Bearer 认证）。
+Agnes AI 官方 API（https://platform.agnes-ai.cn 获取 Key，Bearer 认证）。支持两个节点：
 
-**模型归属**：本 Skill 使用的模型均属于 **Agnes AI**（Sapiens AI 旗下，国内节点 agnes-ai.cn）：
+| 节点 | 服务 host | 说明 | 切换方式 |
+|---|---|---|---|
+| `cn`（默认） | `https://api.agnes-ai.cn` | 国内节点 | 默认值，无需指定 |
+| `com` | `https://api.agnes-ai.com` | 国外节点 | 脚本传 `--node com`，或设环境变量 `AGNES_BASE_URL`（如 `https://api.agnes-ai.com`，带/不带 `/v1` 均可） |
+
+**模型归属**：本 Skill 使用的模型均属于 **Agnes AI**（Sapiens AI 旗下，国内节点 agnes-ai.cn / 国外节点 agnes-ai.com）：
 
 | 能力 | 模型名称（请求 `model` 字段值） | 端点 |
 |---|---|---|
@@ -22,9 +27,15 @@ API Key 解析优先级（脚本自动处理，通常无需手动配置）：
 
 1. `--api-key` 参数
 2. 环境变量 `AGNES_API_KEY`
-3. `~/.codebuddy/models.json` 中 `url` 以 `https://api.agnes-ai.cn` 开头的自定义模型的 `apiKey`（插件可直接读取该文件）
+3. `~/.codebuddy/models.json` 中 `url` 以 `https://api.agnes-ai.cn` 或 `https://api.agnes-ai.com` 开头的自定义模型的 `apiKey`（插件可直接读取该文件）
 
 三者都缺失时脚本会报错提示；此时向用户索要 Key 并设置：`setx AGNES_API_KEY "sk-..."`（新开终端生效）。
+
+**节点选择**（两个脚本通用）：
+
+- `--node cn|com`（默认 cn）：显式指定国内/国外节点
+- 环境变量 `AGNES_BASE_URL` 优先级最高：如 `AGNES_BASE_URL=https://api.agnes-ai.com`（带/不带 `/v1` 均可）
+- 走 `models.json` 回退时：条目与所选节点一致则跟随该条目 host；条目属于另一节点则改用所选节点的默认 Base，保证 Key 与节点配对
 
 ## 图像生成 / 编辑（Agnes Image 2.5 Flash，同步）
 
