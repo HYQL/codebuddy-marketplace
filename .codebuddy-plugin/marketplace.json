@@ -1,0 +1,24 @@
+{
+  "name": "admin-marketplace",
+  "description": "Agnes AI 媒体生成插件集合（图像/视频）",
+  "version": "1.0.0",
+  "owner": {
+    "name": "Administrator"
+  },
+  "plugins": [
+    {
+      "name": "agnes-media",
+      "source": "./plugins/agnes-media",
+      "description": "Agnes AI 图像与视频生成（agnes-image-2.5-flash / agnes-video-2.5-flash），含零依赖 Python 脚本，API Key 可自动读取 CodeBuddy models.json",
+      "version": "1.0.0",
+      "license": "MIT",
+      "keywords": [
+        "agnes",
+        "image",
+        "video",
+        "media-generation"
+      ],
+      "category": "productivity"
+    }
+  ]
+}
