@@ -32,7 +32,7 @@ POLL_STATUSES_DONE = {"completed", "failed"}
 
 
 def http_json(url: str, api_key: str, payload: dict | None, timeout: int,
-              method: str = "POST") -> dict:
+              method: str = "POST", tolerant_429: bool = False) -> dict | None:
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers={
         "Authorization": f"Bearer {api_key}",
@@ -42,6 +42,8 @@ def http_json(url: str, api_key: str, payload: dict | None, timeout: int,
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
+        if e.code == 429 and tolerant_429:
+            return None  # 查询限流：返回 None 由调用方退避重试，不中断任务
         body = e.read().decode("utf-8", "replace")
         sys.exit(f"[API {e.code}] {url}\n{body}")
 
@@ -91,7 +93,11 @@ def poll(video_id: str, mode: str, api_key: str, host: str, model: str,
     deadline = time.time() + timeout
     last_status = ""
     while time.time() < deadline:
-        resp = http_json(url, api_key, None, timeout=30, method="GET")
+        resp = http_json(url, api_key, None, timeout=30, method="GET", tolerant_429=True)
+        if resp is None:
+            print("[agnes-video] 查询遇 429（查询过于频繁），自动退避继续轮询 …")
+            time.sleep(interval * 2)
+            continue
         status = str(resp.get("status", ""))
         if status != last_status:
             progress = resp.get("progress")
@@ -102,7 +108,24 @@ def poll(video_id: str, mode: str, api_key: str, host: str, model: str,
         if status == "failed":
             sys.exit(f"视频任务失败: {json.dumps(resp, ensure_ascii=False)[:800]}")
         time.sleep(interval)
-    sys.exit(f"轮询超时（{timeout}s），video_id={video_id}，可稍后手动查询: {url}")
+    sys.exit(f"轮询超时（{timeout}s），video_id={video_id}，任务仍在服务端运行，"
+             f"稍后可用 --resume {video_id} 继续（勿重新创建）")
+
+
+def make_keyframe(prompt: str, image_model: str, api_key: str, host: str,
+                  timeout: int = 300) -> str:
+    """先用图像模型生成关键帧（同步），返回其 Agnes 远程 URL，可直接作 first_frame。"""
+    base = host + "/v1"
+    payload = {"model": image_model, "prompt": prompt, "size": "1K",
+               "extra_body": {"response_format": "url"}}
+    print(f"[agnes-video] 生成关键帧图 model={image_model} …")
+    resp = http_json(f"{base}/images/generations", api_key, payload, timeout)
+    item = (resp.get("data") or [{}])[0]
+    url = item.get("url")
+    if not url:
+        sys.exit(f"关键帧图生成失败（需 url 模式）: {json.dumps(resp, ensure_ascii=False)[:500]}")
+    print(f"[agnes-video] 关键帧图已生成: {url}")
+    return url
 
 
 def download(url: str, out: Path, api_key: str, timeout: int) -> None:
@@ -161,7 +184,8 @@ def resolve_credentials(cli_key: str | None, node: str) -> tuple[str, str]:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Agnes Video 2.5 Flash 视频生成")
-    ap.add_argument("prompt", help="视频描述；reference 模式可用 <Picture N>/<Audio N> 指代素材")
+    ap.add_argument("prompt", nargs="?", default="",
+                    help="视频描述；reference 模式可用 <Picture N>/<Audio N> 指代素材；--resume/--status 时不需要")
     ap.add_argument("--mode", choices=["text", "keyframe", "reference"], default="text")
     ap.add_argument("--seconds", type=int, default=5, help="时长 4~12（默认 5）")
     ap.add_argument("--aspect-ratio", default="16:9",
@@ -176,25 +200,52 @@ def main() -> None:
     ap.add_argument("--timeout", type=int, default=600, help="总轮询超时秒（默认 600）")
     ap.add_argument("--model", default=MODEL,
                     help=f"模型名（默认 {MODEL}；如升级到 3.0 可传 agnes-video-3.0-flash，视官方发布为准）")
+    ap.add_argument("--resume", default=None,
+                    help="已有 video_id：跳过创建，直接继续轮询并下载（中断恢复；keyframe/reference 任务需同时传 --mode）")
+    ap.add_argument("--status", default=None,
+                    help="已有 video_id：只查询任务状态/进度与远程地址，不下载")
+    ap.add_argument("--from-image-prompt", default=None,
+                    help="图生视频一步流：先用该提示词生成关键帧图，其 Agnes 远程地址自动作为 first_frame（进入 keyframe 模式，无需自备素材 URL）")
+    ap.add_argument("--from-image-model", default="agnes-image-2.5-flash",
+                    help="--from-image-prompt 使用的图像模型（默认 agnes-image-2.5-flash）")
     ap.add_argument("--api-key", default=None, help="Agnes API Key（默认取环境变量 AGNES_API_KEY）")
     ap.add_argument("--node", choices=sorted(AGNES_HOSTS), default="cn",
                     help="API 节点：cn=api.agnes-ai.cn（默认，国内）com=api.agnes-ai.com（国外）；"
                          "亦可用环境变量 AGNES_BASE_URL 直接指定 Base URL")
     args = ap.parse_args()
 
-    if not 4 <= args.seconds <= 12:
-        sys.exit("seconds 必须为 4~12")
     api_key, host = resolve_credentials(args.api_key, args.node)
 
-    payload = build_payload(args)
-    print(f"[agnes-video] 创建任务 model={args.model} host={host} mode={args.mode} seconds={args.seconds} "
-          f"aspect_ratio={args.aspect_ratio} …")
-    resp = http_json(f"{host}/v1/videos", api_key, payload, timeout=60)
+    if args.status:
+        done = poll(args.status, args.mode, api_key, host, args.model,
+                    args.poll_interval, args.timeout)
+        print(f"[agnes-video] status={done.get('status')} progress={done.get('progress')}")
+        if done.get("url"):
+            print(f"[agnes-video] 远程地址: {done['url']}")
+        return
 
-    video_id = resp.get("video_id") or resp.get("task_id") or resp.get("id")
-    if not video_id:
-        sys.exit(f"创建任务响应缺少 video_id: {json.dumps(resp, ensure_ascii=False)[:500]}")
-    print(f"[agnes-video] 任务已创建 video_id={video_id}")
+    if args.resume:
+        video_id = args.resume
+        print(f"[agnes-video] 恢复已有任务 video_id={video_id} host={host} …")
+    else:
+        if not args.prompt:
+            sys.exit("创建任务需要提示词（或用 --resume/--status 操作已有任务）")
+        if not 4 <= args.seconds <= 12:
+            sys.exit("seconds 必须为 4~12")
+        if args.from_image_prompt:
+            args.mode = "keyframe"
+            if not args.first_frame:
+                args.first_frame = make_keyframe(args.from_image_prompt, args.from_image_model,
+                                                  api_key, host)
+        payload = build_payload(args)
+        print(f"[agnes-video] 创建任务 model={args.model} host={host} mode={args.mode} seconds={args.seconds} "
+              f"aspect_ratio={args.aspect_ratio} …")
+        resp = http_json(f"{host}/v1/videos", api_key, payload, timeout=60)
+
+        video_id = resp.get("video_id") or resp.get("task_id") or resp.get("id")
+        if not video_id:
+            sys.exit(f"创建任务响应缺少 video_id: {json.dumps(resp, ensure_ascii=False)[:500]}")
+        print(f"[agnes-video] 任务已创建 video_id={video_id}")
 
     done = poll(video_id, args.mode, api_key, host, args.model, args.poll_interval, args.timeout)
     url = done.get("url")

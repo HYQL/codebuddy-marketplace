@@ -71,8 +71,11 @@ python scripts/agnes_video.py "提示词" [选项]
 - `--seconds 4~12`（字符串，默认 5）；`--aspect-ratio`（默认 16:9）；分辨率仅支持 720P
 - `--first-frame URL` / `--last-frame URL`：keyframe 模式，至少传一个；两个 URL 必须可公开访问
 - `--images URL`（可重复，最多 5 张）/ `--audios URL`（可重复，最多 3 段）：reference 模式，prompt 中用 `<Picture N>`、`<Audio N>` 指代素材；videos 参考不支持
-- `--out 文件路径`（默认 `agnes_out/video_<时间戳>.mp4`）；`--poll-interval`（默认 10s，免费额度查询频繁会 429，勿调小）；`--timeout`（默认 600s）
+- `--out 文件路径`（默认 `agnes_out/video_<时间戳>.mp4`）；`--poll-interval`（默认 10s；429 会自动退避重试，勿调小）；`--timeout`（默认 600s）
 - `--model 模型名`（默认 `agnes-video-2.5-flash`；官方发布 3.0 后可直接传新模型名，轮询 `model_name` 会自动跟随；无需改脚本）
+- `--from-image-prompt 提示词`（可选配 `--from-image-model`，默认 `agnes-image-2.5-flash`）：**图生视频一步流**——先调图像接口生成关键帧图，其 Agnes 远程地址自动作为 `first_frame`（自动进入 keyframe 模式），无需自备公共素材 URL；也可与显式 `--first-frame` 并用（显式优先，跳过生成）
+- `--resume VIDEO_ID`：跳过创建，对已有任务继续轮询并下载（轮询超时/中断后恢复用；keyframe/reference 任务需同时传 `--mode`）
+- `--status VIDEO_ID`：只查询任务状态/进度与远程地址，不下载
 
 示例：
 
@@ -80,9 +83,14 @@ python scripts/agnes_video.py "提示词" [选项]
 python scripts/agnes_video.py "雨后未来城市街道，霓虹倒影，银色跑车驶过" --seconds 5 --aspect-ratio 16:9
 python scripts/agnes_video.py "角色从首帧姿态转身走向窗边" --mode keyframe --first-frame https://example.com/f.png --last-frame https://example.com/l.png
 python scripts/agnes_video.py "以 <Picture 1> 的角色在花田奔跑" --mode reference --images https://example.com/char.png
+# 图生视频一步流（本地没有可用素材 URL 时首选）：
+python scripts/agnes_video.py "熊猫在竹林里打滚" --from-image-prompt "可爱熊猫在竹林，写实" --seconds 4
+# 轮询超时/中断后恢复（勿重新建任务）：
+python scripts/agnes_video.py --resume task_XXX
+python scripts/agnes_video.py --status task_XXX
 ```
 
-> 视频参考图/音频必须是可公开访问的 URL，且任务完成前保持有效。本地文件无法直接作为视频参考（不像图片可转 Data URI）。
+> 视频参考图/音频必须是可公开访问的 URL，且任务完成前保持有效。本地文件无法直接作为视频参考（不像图片可转 Data URI）——需要"基于某画面出视频"时用 `--from-image-prompt` 一步流（先文生图拿远程 URL，再作首帧）。
 
 ## 规则与易错点（必须遵守）
 
@@ -91,7 +99,8 @@ python scripts/agnes_video.py "以 <Picture 1> 的角色在花田奔跑" --mode 
 - 模式字段互斥：text 不带媒体；keyframe 不带 images/audios/videos；reference 不带 first_frame/last_frame/videos
 - 图像为同步调用（耗时数秒到数十秒，脚本超时默认 300s）；视频为异步任务，完成前反复轮询，勿重复创建任务
 - 成功后脚本会额外打印**远程地址**（`[agnes-image] 远程地址: <url>` / `[agnes-video] 远程地址: <url>`，Agnes CDN 媒体链接）；该远程地址有有效期，交付用户时优先给本地文件，远程链接仅作补充（b64 模式无远程 URL）
-- 免费额度下视频查询接口有频率限制（429"查询过于频繁"），轮询间隔默认 10s，勿调小到 2s；若轮询中断，用已有 `video_id` 继续查询，不要重新建任务
+- 免费额度下视频查询接口有频率限制（429"查询过于频繁"）：脚本轮询遇 429 会自动退避（2×间隔）重试，任务不会丢；间隔默认 10s 勿调小到 2s
+- 轮询超时或进程被中断后，任务仍在服务端运行：用 `--resume <video_id>` 继续轮询下载、`--status <video_id>` 查状态，**不要重新建任务**
 - 校验失败（400）不产生费用；鉴权失败（401/403）检查 Key 与账户余额
 
 ## 详细参考
