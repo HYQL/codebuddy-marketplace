@@ -1,6 +1,11 @@
 ---
 name: agnes-media
+version: 1.3.0
+display_name: Agnes AI 图像与视频生成
+display_name_en: Agnes AI Image & Video Generation
 description: Agnes AI 图像与视频生成。调用 Agnes 官方模型 Agnes Image 2.5 Flash（model=agnes-image-2.5-flash，文生图/图生图/多图合成）与 Agnes Video 2.5 Flash（model=agnes-video-2.5-flash，文生视频/首尾帧/参考图音频生视频）API。当用户要求使用 Agnes 生成图片、生成视频、图生图、图生视频、AI 绘画（Agnes）时触发。
+description_zh: Agnes AI 图像与视频生成技能。调用 Agnes 官方模型 Agnes Image 2.5 Flash 与 Agnes Video 2.5 Flash，支持文生图、图生图、多图合成、文生视频、首尾帧视频、参考图音频生视频，以及图生视频一步流与任务恢复。当用户要求使用 Agnes 生成图片、生成视频、图生图、图生视频或 AI 绘画时触发。
+description_en: Agnes AI image and video generation skill. Calls Agnes official models Agnes Image 2.5 Flash and Agnes Video 2.5 Flash, supporting text-to-image, image-to-image, multi-image composition, text-to-video, keyframe video, and reference image/audio-to-video, plus one-shot image-to-video and task resume. Triggers when the user asks to generate images, videos, image-to-image, video-to-video, or AI painting with Agnes.
 ---
 
 # Agnes Media（图像 + 视频生成）
