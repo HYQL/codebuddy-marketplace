@@ -19,6 +19,21 @@
         "media-generation"
       ],
       "category": "productivity"
+    },
+    {
+      "name": "agnes-media-flash",
+      "source": "./plugins/agnes-media-flash",
+      "description": "Agnes AI 图像与视频生成（agnes-image-2.5-flash / agnes-video-2.5-flash），支持文生图、图生图、多图合成、文生视频、首尾帧与参考图音频生视频，含零依赖 Python 脚本，API Key 可自动读取 CodeBuddy models.json",
+      "version": "1.1.0",
+      "license": "MIT",
+      "keywords": [
+        "agnes",
+        "image",
+        "video",
+        "media-generation",
+        "flash"
+      ],
+      "category": "productivity"
     }
   ]
 }

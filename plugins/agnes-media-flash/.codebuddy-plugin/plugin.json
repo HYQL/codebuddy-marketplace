@@ -1,0 +1,10 @@
+{
+  "name": "agnes-media-flash",
+  "display_name": "Agnes Flash 多模态生成 · 图像与视频",
+  "display_name_en": "Agnes Flash Multimodal Generation · Image & Video",
+  "description": "Agnes AI 图像与视频生成（Agnes Image 2.5 Flash / Agnes Video 2.5 Flash）。支持文生图、图生图、多图合成、文生视频、首尾帧与参考图音频生视频。API Key 解析优先级：--api-key 参数 > 环境变量 AGNES_API_KEY > ~/.codebuddy/models.json 中 Agnes 模型配置。",
+  "version": "1.1.0",
+  "author": {
+    "name": "Administrator"
+  }
+}
