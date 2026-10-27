@@ -34,6 +34,20 @@
         "flash"
       ],
       "category": "productivity"
+    },
+    {
+      "name": "hunyuan-image-gen",
+      "source": "./plugins/hunyuan-image-gen",
+      "description": "腾讯云 CloudBase 混元生图（HY-Image-3.0-Plus-4090-Tob-v1.0）。通过云开发 Node SDK 在云函数内调用 app.ai().createImageModel('hunyuan-image').generateImage() 消耗 CloudBase AI 生图额度；仅支持云开发 SDK 通道（裸 HTTP 直连会被 403 AI_CHANNEL_NOT_ALLOWED 拒绝）。model 字段用能力组规范名 hunyuan-image 命中正确路由与额度包。",
+      "version": "1.0.0",
+      "license": "MIT",
+      "keywords": [
+        "cloudbase",
+        "hunyuan",
+        "image-generation",
+        "ai-image"
+      ],
+      "category": "productivity"
     }
   ]
 }

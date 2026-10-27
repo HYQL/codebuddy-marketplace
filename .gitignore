@@ -1,0 +1,15 @@
+# 依赖（云函数的 node_modules 不应随插件发布）
+node_modules/
+
+# 密钥与本地环境配置
+.env
+.env.*
+.codebuddy/
+
+# 生图产物（临时 URL 文件、本地下载图片）
+hunyuan_out/
+urls.txt
+
+# 系统 / 编辑器文件
+.DS_Store
+Thumbs.db

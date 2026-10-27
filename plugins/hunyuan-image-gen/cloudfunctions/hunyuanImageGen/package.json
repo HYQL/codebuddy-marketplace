@@ -1,0 +1,9 @@
+{
+  "name": "hunyuanImageGen",
+  "version": "1.0.0",
+  "description": "CloudBase Hunyuan image generation cloud function",
+  "main": "index.js",
+  "dependencies": {
+    "@cloudbase/node-sdk": "^3.18.7"
+  }
+}

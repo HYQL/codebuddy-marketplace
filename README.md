@@ -8,6 +8,7 @@
 |---|---|---|
 | `agnes-media` | 1.3.0 | Agnes AI 图像与视频生成技能，支持国内/国外双节点，完成后输出远程媒体地址，`--model` 可切换模型版本，图生视频一步流 / 任务恢复 / 429 自动退避（详见下文） |
 | `agnes-media-flash` | 1.1.0 | Agnes AI 图像与视频生成技能（agnes-image-2.5-flash / agnes-video-2.5-flash），支持文生图、图生图、多图合成、文生视频、首尾帧与参考图音频生视频（详见下文） |
+| `hunyuan-image-gen` | 1.0.0 | CloudBase 混元生图（HY-Image-3.0-Plus-4090-Tob-v1.0），云开发 SDK 通道，`model` 用 `hunyuan-image` 命中生图额度包，含云函数源码与本地脚本 |
 
 ## 安装插件
 
@@ -129,6 +130,16 @@ setx AGNES_API_KEY "sk-你的Key"
 > 用 Agnes 生成一段视频：雨夜的城市街道，8 秒
 > 给这张图做图生视频：竹林里的熊猫
 
+## hunyuan-image-gen 技能说明
+
+调用腾讯云 CloudBase 混元生图（HY-Image-3.0-Plus-4090-Tob-v1.0），通过云开发 Node SDK 在云函数内 `app.ai().createImageModel('hunyuan-image').generateImage()` 消耗 CloudBase AI 生图额度。
+
+| 能力 | 调用方式 | 说明 |
+|---|---|---|
+| 文生图 | `app.ai().createImageModel('hunyuan-image').generateImage({ model:'hunyuan-image', prompt, size })` | `model` 字段用能力组规范名 `hunyuan-image`，命中 `images/generations` 路由与 AI 生图额度包；直接传 `HY-Image-3.0-Plus-4090-Tob-v1.0` 会 400 |
+
+含云函数源码（`cloudfunctions/hunyuanImageGen/`，依赖 `@cloudbase/node-sdk`）与本地脚本（`scripts/generate_image.js`，可从环境变量读取密钥或运行于云函数）。**仅支持云开发 SDK 通道**：在"小程序成长计划"等套餐下裸 HTTP/Bearer 直连 AI 网关会被拒（403 `AI_CHANNEL_NOT_ALLOWED`）。使用前需在本环境开通 CloudBase AI 生图额度包（如 `pkg_hunyuan_ai_image_*`）。
+
 ## 版本与更新
 
 - 市场/插件版本以 `marketplace.json` 与 `plugin.json` 中的 `version`（语义化版本）跟踪
@@ -136,8 +147,8 @@ setx AGNES_API_KEY "sk-你的Key"
 
 ## 安全说明
 
-插件和 CodeBuddy 市场是高度受信任的组件，会以你的用户权限执行代码。安装前请审查 `plugins/` 目录中的脚本内容（本市场含 `agnes-media` 与 `agnes-media-flash` 两个插件，每个插件各含两个仅调用 Agnes API 的 Python 标准库脚本，不含其他可执行逻辑）。
+插件和 CodeBuddy 市场是高度受信任的组件，会以你的用户权限执行代码。安装前请审查 `plugins/` 目录中的脚本内容（本市场含 `agnes-media`、`agnes-media-flash` 与 `hunyuan-image-gen` 三个插件：`agnes-media` / `agnes-media-flash` 各含仅调用 Agnes API 的 Python 标准库脚本；`hunyuan-image-gen` 含 Node 云函数源码与脚本，调用 CloudBase SDK 生成图片，不含其他可执行逻辑）。
 
 ## 许可证
 
-`agnes-media` / `agnes-media-flash` 插件：MIT（见 `marketplace.json` 中 `license` 字段）。
+`agnes-media` / `agnes-media-flash` / `hunyuan-image-gen` 插件：MIT（见 `marketplace.json` 中 `license` 字段）。
