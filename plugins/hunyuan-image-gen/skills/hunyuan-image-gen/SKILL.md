@@ -1,6 +1,11 @@
 ---
 name: hunyuan-image-gen
-description: 腾讯云 CloudBase 混元生图（模型 HY-Image-3.0-Plus-4090-Tob-v1.0，已内置 @cloudbase/node-sdk）。当用户要求通过腾讯云/CloudBase 生图、调用混元图像模型、或"在云函数里用 Node SDK 间接生图、拿到图片 URL"时触发。提供官方合规路径：@cloudbase/node-sdk 3.18.3 及以上版本初始化云开发环境，调用 AI 图像生成接口消耗 CloudBase AI 额度。
+version: 1.0.0
+display_name: 腾讯云 CloudBase 混元生图
+display_name_en: Tencent CloudBase Hunyuan Image Generation
+description: 腾讯云 CloudBase 混元生图（模型 HY-Image-3.0-Plus-4090-Tob-v1.0，已内置 @cloudbase/node-sdk）。当用户要求通过腾讯云/CloudBase 生图、调用混元图像模型、或"在云函数里用 Node SDK 间接生图、拿到图片 URL"时触发。提供官方合规路径：@cloudbase/node-sdk 初始化云开发环境，调用 AI 图像生成接口消耗 CloudBase AI 额度。
+description_zh: 腾讯云 CloudBase 混元生图技能（模型 HY-Image-3.0-Plus-4090-Tob-v1.0）。通过云开发 Node SDK 在云函数内 app.ai().createImageModel('hunyuan-image').generateImage() 消耗 CloudBase AI 生图额度；仅支持云开发 SDK 通道（裸 HTTP 直连会被 403 AI_CHANNEL_NOT_ALLOWED 拒绝）。当用户要求用腾讯云/CloudBase 生图、调用混元图像模型、或在云函数里用 Node SDK 生图并拿到图片 URL 时触发。
+description_en: Tencent CloudBase Hunyuan image generation skill (model HY-Image-3.0-Plus-4090-Tob-v1.0). Generates images via the CloudBase Node SDK inside a cloud function (app.ai().createImageModel('hunyuan-image').generateImage()), consuming CloudBase AI image quota. Only the cloud-function SDK channel is allowed (raw HTTP/Bearer calls are rejected with 403 AI_CHANNEL_NOT_ALLOWED). Triggers when the user asks to generate images via Tencent Cloud/CloudBase, call the Hunyuan image model, or produce an image URL from a cloud function.
 ---
 
 # 腾讯云 CloudBase 混元生图（官方合规路径）
