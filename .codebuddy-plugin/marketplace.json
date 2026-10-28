@@ -7,6 +7,21 @@
   },
   "plugins": [
     {
+      "name": "git-file-up",
+      "source": "./plugins/git-file-up",
+      "description": "把本地文件（图片/视频/音频/文档，单文件 ≤50MB）上传到 GitHub 支持附件端点，返回可直接引用的云端 URL。临时通道，URL 仅 60 分钟有效；内置串行队列 + ratelimit 响应头自适应等待 + 指数退避 + Retry-After 处理，规避 IP 限流；超时按文件体积自适应。适合把本地图片变成外链、给 Markdown/网页/API 提供短期公网地址、或批量上传媒体文件。",
+      "version": "1.0.0",
+      "license": "MIT",
+      "keywords": [
+        "github",
+        "upload",
+        "file-hosting",
+        "ephemeral-url",
+        "image-hosting"
+      ],
+      "category": "utility"
+    },
+    {
       "name": "agnes-media",
       "source": "./plugins/agnes-media",
       "description": "Agnes AI 图像与视频生成（agnes-image-2.5-flash / agnes-video-2.5-flash，--model 可切换模型版本），支持国内（api.agnes-ai.cn）/国外（api.agnes-ai.com）双节点，图生视频一步流（--from-image-prompt）/任务恢复（--resume）/429 自动退避，含零依赖 Python 脚本，API Key 可自动读取 CodeBuddy models.json",
